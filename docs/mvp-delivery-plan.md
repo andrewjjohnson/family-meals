@@ -58,7 +58,7 @@ Phase 3  FM-9 ─► FM-29
 **Exit criteria**
 
 - A food can be entered three ways (scan or barcode entry, catalog, manual) and used in both a recipe and the diary.
-- Worked examples 1–4 pass as automated fixtures through `src/domain`.
+- Worked examples 1–4 (including the 1b batch corrections) pass as automated fixtures through `src/domain`.
 - A batch logged across several days keeps its snapshot after the recipe and source food are edited.
 - Failed lookups (not found, offline, timeout, denied, rate-limited) continue to manual entry with the barcode retained.
 - Open Food Facts and USDA attribution is visible. No secrets are in the bundle.
@@ -71,8 +71,8 @@ Phase 3  FM-9 ─► FM-29
 | [FM-23](https://frostfiredigital-37308542.atlassian.net/browse/FM-23) | Create local household profiles with food preferences and restrictions | FM-15 | [HouseholdMember](data-model.md#householdmember) |
 | [FM-24](https://frostfiredigital-37308542.atlassian.net/browse/FM-24) | Save family serving variations that reuse a common recipe | FM-16, FM-23 | [ServingVariation](data-model.md#servingvariation), example 2 |
 | [FM-25](https://frostfiredigital-37308542.atlassian.net/browse/FM-25) | Record quick family feedback and find recipes that worked | FM-24 | [RecipeFeedback](data-model.md#recipefeedback), example 6 |
-| [FM-26](https://frostfiredigital-37308542.atlassian.net/browse/FM-26) | Plan a week of personal meal prep and family meals | FM-25 | [WeekPlan](data-model.md#weekplan) |
-| [FM-27](https://frostfiredigital-37308542.atlassian.net/browse/FM-27) | Allocate prep batches and planned leftovers across the week | FM-26, FM-19 | [WeekPlan reservations](data-model.md#weekplan), example 5 |
+| [FM-26](https://frostfiredigital-37308542.atlassian.net/browse/FM-26) | Plan a week of personal meal prep and family meals | FM-25 | [WeekPlan](data-model.md#weekplan-prepevent-and-plannedmeal) |
+| [FM-27](https://frostfiredigital-37308542.atlassian.net/browse/FM-27) | Allocate prep batches and planned leftovers across the week | FM-26, FM-19 | [WeekPlan reservations](data-model.md#weekplan-prepevent-and-plannedmeal), example 5 |
 | [FM-28](https://frostfiredigital-37308542.atlassian.net/browse/FM-28) | Generate an editable consolidated grocery list from planned cooking | FM-27 | [GroceryList](data-model.md#grocerylist), example 5 |
 
 **Exit criteria**
@@ -112,7 +112,7 @@ This checklist is used by [FM-31](https://frostfiredigital-37308542.atlassian.ne
 - [ ] Create a food, recipe, batch, diary entry, profile, plan, and grocery check. Then force-quit and relaunch (native), and reload and restart the browser (web). Everything is present.
 - [ ] Install build N, add data, upgrade to build N+1 with a migration, and confirm that the data and computed totals are unchanged.
 - [ ] Simulate a failing multi-record write: no partial records remain, and the form keeps its input.
-- [ ] Double-tap Save on a diary entry and on "mark eaten": exactly one record is created.
+- [ ] Double-tap Save on a diary entry, and double-tap "mark eaten" on a meal with an adult and a child: exactly one diary entry and one set of child adjustments are created. Undo eaten, then mark eaten again: the records are recreated once.
 - [ ] Web: Settings shows whether persistent storage was granted and when the last backup was taken. Two tabs behave as documented in FM-9.
 
 ### Food capture and lookup
@@ -135,8 +135,10 @@ This checklist is used by [FM-31](https://frostfiredigital-37308542.atlassian.ne
 ### Family and planning
 
 - [ ] Create a child profile without a birth date, goal, or diary. No calorie target appears anywhere for the child.
-- [ ] Restriction flags show "unknown" when ingredient data is missing, and never "safe".
-- [ ] Plan a Sunday cook plus three leftover lunches. The grocery list counts the cook once. Marking a lunch skipped creates no diary entry and releases the reservation.
+- [ ] Restriction flags show "flagged" for a scanned product whose allergen tags match, and "unknown" when the source declares no allergens. They never show "safe" based on a name.
+- [ ] Plan a Sunday cook plus three leftover lunches. The grocery list counts the cook once. Marking a lunch skipped creates no diary entry and releases the reservation. Logging unplanned food from the batch past its reservations shows the over-allocation warning.
+- [ ] Record a batch, log a portion, then record a corrected yield: remaining and new portions follow the new yield, and earlier portions change only if confirmed.
+- [ ] Change the week-start day: no planned meal or prep event disappears or moves date.
 - [ ] Rebuild the grocery list after a plan change: valid checks are kept and changed quantities are explained.
 - [ ] Feedback shows the variation revision actually served after the variation is edited.
 
@@ -144,7 +146,7 @@ This checklist is used by [FM-31](https://frostfiredigital-37308542.atlassian.ne
 
 - [ ] Export, wipe (or use a fresh install), and restore: IDs, totals, history, portions, and allocations match.
 - [ ] Import a corrupted or newer-version file: it is rejected with an explanation and existing data is unchanged.
-- [ ] Back up on one platform and restore on another (for example iOS to web).
+- [ ] Back up on one platform and restore on another (for example iOS to web). Catalog foods referenced by recipes resolve after restore, and the week-start setting is restored.
 
 ### Accessibility and layout
 

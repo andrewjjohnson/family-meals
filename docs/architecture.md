@@ -80,13 +80,15 @@ From the [OFF API docs](https://openfoodfacts.github.io/openfoodfacts-server/api
   - The database is ODbL 1.0 and individual contents are DbCL 1.0. Images are CC BY-SA 3.0.
   - Attribution requires crediting Open Food Facts, naming the license, and linking to the source.
   - Derivative databases that are used publicly must be share-alike.
-- Barcodes are normalized server-side: strip leading zeros, pad 9–12-digit codes to 13 digits, and pad codes of 7 digits or fewer to 8 [V: [barcode normalization](https://openfoodfacts.github.io/openfoodfacts-server/api/ref-barcode-normalization/)].
+- Barcodes are normalized server-side: strip leading zeros, pad 9–12-digit codes to 13 digits, and pad codes of 7 digits or fewer to 8 [V: [barcode normalization](https://openfoodfacts.github.io/openfoodfacts-server/api/ref-barcode-normalization/)]. The app applies the same rule to compute `barcode.normalized` and also stores the scanned digits unchanged ([data model](data-model.md#foodrecord)).
 
 **Live check on 2026-11-03** (one request for product `3017624010701`):
 
 - The response returned `access-control-allow-origin: *` and allowed the `User-Agent` and `X-User-Agent` request headers. Browser calls are therefore possible without a proxy [V: live check]. CORS is not documented, so treat it as subject to change [A].
 - In v3.6, nutrients are under `product.nutrition.aggregated_set.nutrients`. Each value carries `value`, `unit`, `source` (`packaging` or `estimate`), and `source_per` (`100g`). The legacy `product.nutriments` object came back **empty** for this product [V: live check]. The importer must read the v3.6 structure and must not depend on `nutriments`.
 - Sodium was reported in **grams** (`0.043 g`), so it must be converted to mg. Fiber was absent and must stay unknown. Some values had `source: "estimate"` and modifier `~` [V: live check].
+
+- The same response contained `allergens_tags` (`en:nuts`) and `traces_tags` (`en:milk`, `en:nuts`, `en:soybeans`) [V: live check]. These are imported into `FoodRecord.allergens` so household restrictions can be flagged. A product with neither field is `declared: false`, so its restriction status is `unknown`.
 
 **Decision:** import only `packaging` (label) values by default. `estimate` values are excluded, so those nutrients stay unknown. This keeps "do not invent nutrient values" ([FM-11](https://frostfiredigital-37308542.atlassian.net/browse/FM-11), [FM-21](https://frostfiredigital-37308542.atlassian.net/browse/FM-21)) simple. FM-11 may revisit this with an explicit "estimated" status.
 
@@ -99,6 +101,9 @@ From the [FDC API guide](https://fdc.nal.usda.gov/api-guide/) and [download data
 - **Foundation Foods** has an October 2026 release in JSON and CSV. **SR Legacy** (April 2018) is the final release and will not be updated [V].
 
 **Decision:** ship a small bundled catalog built offline from downloaded Foundation Foods data, using SR Legacy only for staples that Foundation Foods lacks. The client never calls the FDC API and contains no USDA key ([FM-14](https://frostfiredigital-37308542.atlassian.net/browse/FM-14)).
+
+- **Catalog IDs** are deterministic (UUIDv5 of `usda:<fdcId>`), so references survive catalog upgrades and backups taken on other devices ([data model](data-model.md#identifiers-and-shared-conventions)).
+- **Energy mapping** [A: not verified against the October 2026 files]: some Foundation Foods records may report energy only as Atwater-factor nutrients rather than the standard energy nutrient. The build script must check which energy nutrients each selected record has, and map them in this order: standard energy (kcal), then Atwater specific factors, then Atwater general factors. It records which one was used in the catalog's source notes. A food with none of these stays unknown. FM-14 confirms the nutrient IDs against the downloaded files.
 
 ## Application structure (for FM-9)
 
@@ -133,7 +138,7 @@ Rules:
 - Migrations are forward-only. A database newer than the app (for example after a downgrade) opens read-only with a message and is never rewritten.
 - Migration tests seed a database at version N and assert data after migrating to the latest version. FM-9 decides where these run: a Node SQLite binding in CI [A], device/E2E checks, or both.
 - The **backup format has its own version** ([FM-29](https://frostfiredigital-37308542.atlassian.net/browse/FM-29)). Import upgrades older backup versions through the same domain-level transforms. Restore never runs raw SQL taken from a file.
-- The USDA catalog has a `catalogVersion`. App upgrades replace catalog rows. User foods and `user_corrected` copies are untouched.
+- The USDA catalog has a `catalogVersion`. An app upgrade updates catalog rows in place by deterministic ID and bumps their `revision`. Removed items are archived, never deleted. User foods and `user_corrected` copies are untouched. Backups exclude catalog rows; restore checks catalog references against the installed catalog.
 
 ### Offline behavior
 
